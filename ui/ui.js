@@ -208,7 +208,7 @@ $('#media').onclick = async () => {
     if (m.kind === 'mse') {
       if (m.drm) return `<div class="dlitem"><div class="n">${esc(m.name)}</div><div class="s"><span>Encrypted (DRM) streams can’t be saved.</span></div></div>`;
       const acts = m.capturing ? `<span>Capturing… ${Math.round((m.progress || 0) * 100)}%</span><a data-act="stop:${i}" data-keep="1">Stop</a>` : `<a data-act="cap:${i}">Capture whole video</a><a data-act="save:${i}">Save</a>`;
-      return `<div class="dlitem"><div class="n">${esc(m.name)}</div><div class="s"><span>${m.capped ? 'Capture limit reached · ' : ''}${fmt(m.size)} captured</span>${acts}</div></div>`;
+      return `<div class="dlitem" data-mse="${m.capturing ? 'busy' : '1'}"><div class="n">${esc(m.name)}</div><div class="s"><span>${m.capped ? 'Capture limit reached · ' : ''}${fmt(m.size)} captured</span>${acts}</div></div>`;
     }
     const yt = m.kind === 'youtube' || m.kind === 'scan';
     const stream = m.kind === 'hls' || m.kind === 'dash' || yt;
@@ -231,7 +231,7 @@ $('#media').onclick = async () => {
   const onlyScan = list.every(m => m.kind === 'scanrow');
   const rows = (onlyScan ? '<div class="pop-p" style="padding:12px 14px">No media detected yet. Open a page with a video — it does not need to play.</div>' : '') + list.map(row).join('');
   const hasMse = list.some(m => m.kind === 'mse' && !m.drm);
-  const d = showDropdown(rows + (hasMse ? '<div class="pop-p">Streaming video is saved from what the page loads. “Capture whole video” plays it muted at high speed to load everything.</div>' : '') + '<div class="sep"></div>' + menuItem('Open page grabber…', '', 'grab'), r.right - 440, r.bottom + 4, { minWidth: '440px' });
+  const d = showDropdown(rows + (hasMse ? '<div class="pop-p" data-mse="1">Streaming video is saved from what the page loads. “Capture whole video” plays it muted at high speed to load everything.</div>' : '') + '<div class="sep"></div>' + menuItem('Open page grabber…', '', 'grab'), r.right - 440, r.bottom + 4, { minWidth: '440px' });
   const tok = d.dataset.tok = String(++mediaTok);
   const picked = {};   // index -> chosen variant
   const infos = {};
@@ -253,6 +253,10 @@ $('#media').onclick = async () => {
       if (dup) { c.hidden = true; c.dataset.dup = '1'; return; }
       c.dataset.dup = ''; minor.push(c); c.hidden = !showMinor;
     });
+    // the "Streaming video (blob)" capture is only the fallback: tuck it away once a proper download card exists
+    // (a quality list, or a YouTube / yt-dlp result). A capture that is already running stays visible.
+    const covered = multi.length > 0 || list.some((m, i) => (m.kind === 'youtube' || m.kind === 'scan') && infos[i] && infos[i].variants && infos[i].variants.length);
+    d.querySelectorAll('[data-mse="1"]').forEach(e => { e.hidden = covered; });
     if (toggle) { toggle.remove(); toggle = null; }
     if (minor.length && !showMinor) {
       toggle = document.createElement('div'); toggle.className = 'mtoggle';
