@@ -108,3 +108,5 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 /* hidden cards (duplicates / minor streams) and the "show other streams" link */
 .mcard[hidden] { display: none; }
 .mtoggle { padding: 6px 14px; border-top: 1px solid var(--border); font-size: 12px; } .mtoggle a { color: var(--accent); cursor: pointer; }
+
+[data-mse][hidden] { display: none; }
