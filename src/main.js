@@ -27,6 +27,14 @@ const { getBuffer, sleep } = require('./net');
 // starts from an explicit tap/click. Must be set before the app is ready.
 app.commandLine.appendSwitch('autoplay-policy', 'user-gesture-required');
 
+// Native HEVC / H.265 playback (hev1/hvc1 in MP4, HLS fMP4, MSE). Chromium decodes HEVC through the OS/GPU
+// decoder (D3D11 on Windows); the feature is off by default in Electron, so switch it on before app ready.
+{
+  const extra = ['PlatformHEVCDecoderSupport'];
+  app.commandLine.appendSwitch('enable-features', extra.join(','));
+  app.commandLine.appendSwitch('enable-accelerated-video-decode');
+}
+
 // ---------- portable data directory ----------
 (function setupPortablePaths() {
   const dir = process.env.PORTABLE_EXECUTABLE_DIR;
@@ -893,18 +901,18 @@ function showContextMenu(t, p) {
     T.push({ label: 'Open link in new tab', click: openTab(p.linkURL) });
     if (!t.incognito) T.push({ label: 'Open link in incognito tab', click: () => createTab(p.linkURL, { incognito: true, openerId: t.id, activate: false }) });
     T.push({ label: 'Copy link address', click: () => clipboard.writeText(p.linkURL) });
-    T.push({ label: 'Save link as…', click: () => wc.downloadURL(p.linkURL) });
+    T.push({ label: 'Save link as…', click: () => { downloads.askNext(p.linkURL); wc.downloadURL(p.linkURL); } });
     T.push({ type: 'separator' });
   }
   if (p.mediaType === 'image' && p.srcURL) {
     T.push({ label: 'Open image in new tab', click: openTab(p.srcURL) });
-    T.push({ label: 'Save image as…', click: () => wc.downloadURL(p.srcURL) });
+    T.push({ label: 'Save image as…', click: () => { downloads.askNext(p.srcURL); wc.downloadURL(p.srcURL); } });
     T.push({ label: 'Copy image', click: () => wc.copyImageAt(p.x, p.y) });
     T.push({ label: 'Copy image address', click: () => clipboard.writeText(p.srcURL) });
     T.push({ type: 'separator' });
   }
   if ((p.mediaType === 'video' || p.mediaType === 'audio') && p.srcURL && /^https?:/.test(p.srcURL)) {
-    T.push({ label: 'Save media as…', click: () => wc.downloadURL(p.srcURL) });
+    T.push({ label: 'Save media as…', click: () => { downloads.askNext(p.srcURL); wc.downloadURL(p.srcURL); } });
     T.push({ label: 'Copy media address', click: () => clipboard.writeText(p.srcURL) });
     T.push({ type: 'separator' });
   }
