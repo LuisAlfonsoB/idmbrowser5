@@ -28,6 +28,7 @@ const isMpdUrl = u => /\.mpd(\?|#|$)/i.test(u);
 class DownloadManager {
   constructor(o) {
     Object.assign(this, { store: o.store, getSettings: o.getSettings, getDefaultDir: o.getDefaultDir, getTmpDir: o.getTmpDir, onChange: o.onChange, onProgress: o.onProgress, askSavePath: o.askSavePath, onTorrent: o.onTorrent });
+    this.forceAsk = new Map();   // url -> expiry: "Save … as" requests that must always show the save dialog
     this.items = new Map();      // id -> Electron DownloadItem (browser-engine downloads)
     this.engines = new Map();    // id -> SegmentedDownload | HlsDownload
     this.localCancel = new Map();   // id -> stop function of a running local job (capture, yt-dlp)
@@ -53,6 +54,8 @@ class DownloadManager {
     };
   }
   newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  /** Next Chromium download of this URL always asks where to save (used by "Save image/link/media as…"). */
+  askNext(url) { this.forceAsk.set(url, Date.now() + 15000); }
   targetDir() { const d = this.getSettings().downloadDir || this.getDefaultDir(); try { fs.mkdirSync(d, { recursive: true }); } catch (_) {} return d; }
 
   // ---------- Chromium downloads (with automatic acceleration) ----------
@@ -66,7 +69,8 @@ class DownloadManager {
       }
       const id = this.newId();
       const name = sanitize(item.getFilename());
-      const ask = !!settings.askDownloadLocation;
+      const fa = this.forceAsk.get(url); this.forceAsk.delete(url);
+      const ask = !!settings.askDownloadLocation || (fa !== undefined && fa > Date.now());
       const rec = {
         id, kind: 'chromium', url, filename: name, path: '', total: item.getTotalBytes(), received: 0, state: 'progressing',
         startTime: Date.now(), endTime: 0, speed: 0, mime: item.getMimeType(), incognito: !!incognito, referrer, partition, ua: ses.getUserAgent()
